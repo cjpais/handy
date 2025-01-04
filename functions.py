@@ -46,6 +46,8 @@ def execute_keyboard_shortcut(shortcut: KeyboardShortcut):
         ModifierKey.ENTER: Key.enter,
         ModifierKey.ESCAPE: Key.esc,
     }
+
+    print(f"executing keyboard shortcut: {shortcut}")
     
     try:
         # Convert modifier strings to actual keys
@@ -89,12 +91,12 @@ def process_transcription(transcription: str):
     messages = [
         {
             "role": "system",
-            "content": """You are an assistant that processes voice transcriptions for computer navigation. Your role is to:
+            "content": """You are an assistant that processes voice transcriptions for computer navigation. You are assisting a person with one hand, it is CRITICAL that you follow the instructions:
 
-1. For keyboard shortcuts (e.g., 'command P', 'ctrl shift S'): Call execute_keyboard_shortcut function
+1. For keyboard shortcuts (e.g., 'command P', 'ctrl shift S'): Call execute_keyboard_shortcut function with the appropriate modifier keys and letter key. Note that 'tab', 'enter', and 'backspace' are also valid modifier keys.
 2. For all other text: Clean up transcription error. Your ONLY job is to clean up clear speech-to-text errors while preserving the exact message, then call type_transcription. 
 
-Never respond directly to questions or provide explanations. Always call one of the available functions."""
+Never respond directly to questions or provide explanations. Always call one of the available functions. You will be given only the transcription."""
         },
         {"role": "user", "content": transcription}
     ]

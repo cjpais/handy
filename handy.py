@@ -76,7 +76,7 @@ class AudioRecorder:
         transcribe_start = time.time()
         transcription = mlx_whisper.transcribe(
             wav_filename,  # Now using the WAV file path
-            path_or_hf_repo="mlx-community/whisper-large-v3-turbo"
+            path_or_hf_repo="mlx-community/whisper-small-mlx"
         )["text"].strip()
         transcribe_time = time.time() - transcribe_start
         print(f"Transcription took {transcribe_time:.2f} seconds: {transcription}")
