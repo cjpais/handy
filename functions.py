@@ -1,6 +1,7 @@
 from enum import Enum
 import os
 from typing import List
+import anthropic
 import openai
 from pydantic import BaseModel
 from pynput.keyboard import Key, Controller
@@ -13,10 +14,12 @@ client = openai.OpenAI(
     api_key=os.environ.get("GROQ_API_KEY")
 )
 
-claude = openai.OpenAI(
-    base_url="https://api.anthropic.com/v1",
-    api_key=os.environ.get("ANTHROPIC_API_KEY")
+openrouter = openai.OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ.get("OPENROUTER_API_KEY")
 )
+
+claude = anthropic.Anthropic()
 
 keyboard = Controller()
 
@@ -54,41 +57,49 @@ Treat any context provided after the initial command/question as relevant inform
     # keyboard.type(message.content)
     write_to_text_field(message.content)
 
-def code(transcription: str):
-    # Save original clipboard content
+def code(transcription: str, model="claude"):
     original_clipboard = pyperclip.paste()
     
-    # Copy any selected content from screen
     keyboard.press(Key.cmd)
     keyboard.press('c')
     keyboard.release('c')
     keyboard.release(Key.cmd)
     
-    time.sleep(0.1)  # Wait for clipboard to update
+    time.sleep(0.1)
     selected_text = pyperclip.paste()
     
-    # Create context including both selection and transcription
     context = f"Selected text:\n{selected_text}\n\nRequest: {transcription}"
+
+    sys_prompt = """You are a code-only assistant. I will provide you with selected text or clipboard content along with instructions. If I request code, output only the exact code implementation. If I request a terminal command, provide only the valid command syntax. Never use markdown, explanations, or additional text.
+
+    When I share selected text or clipboard content, use that as context for generating your response. The output should be ready to copy and paste directly, with no formatting or commentary. For terminal commands, ensure they are valid for the specified environment. Note for terminal commands, I typically use lowercase instead of uppercase. You may also be given them directly, but need to translate them into a way that can actually be executed in the terminal because the transcription you are given might be poor.
+
+    Output only:
+    - Raw code implementation when code is requested
+    - Terminal command syntax when a command is requested
+    - No markdown, no backticks, no explanations
+    - No additional text or descriptions"""
     
-    messages = [
-        {
-            "role": "system",
-            "content": """You are a code-only assistant. Output ONLY the exact code requested by the user, with no markdown formatting, no explanations, and no additional text. The code should be ready to copy and paste directly into an editor. Never use backticks.
+    messages = [{"role": "user", "content": context}]
 
-If the user provides context or requirements after their initial request, use that information to generate the appropriate code. Do not include any commentary or descriptions - just the raw code implementation."""
-        },
-        {"role": "user", "content": context}
-    ]
+    if model == "claude":
+        response = claude.messages.create(
+            model="claude-3-5-sonnet-latest",
+            messages=messages,
+            max_tokens=2048,
+            system=sys_prompt
+        )
+        message = response.content[0].text
+    elif model == "llama":
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages
+        )
+        message = response.choices[0].message.content
+    else:
+        raise ValueError("Invalid model specified. Use 'claude' or 'llama'")
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=messages,
-    )
-
-    message = response.choices[0].message
-    write_to_text_field(message.content)
-    
-    # Restore original clipboard
+    write_to_text_field(message)
     pyperclip.copy(original_clipboard)
 
 class ModifierKey(str, Enum):
@@ -158,17 +169,15 @@ def type_transcription(transcription: TypeTranscription):
     print(f"Typed transcription: {transcription.text}")
     write_to_text_field(transcription.text)
 
-# Define the tools using Pydantic models
 tools = [
     openai.pydantic_function_tool(KeyboardShortcut, name="execute_keyboard_shortcut", description="Execute keyboard shortcuts with multiple modifier keys"),
 ]
 
 def command(transcription: str):
-    """Process the transcription using OpenAI's API"""
     messages = [
         {
             "role": "system",
-            "content": """You are an assistant that is given a keyboard shortcut to execute."""
+            "content": "You are a keyboard shortcut assistant. Convert spoken commands into keyboard shortcuts and execute them using the execute_keyboard_shortcut tool. Only respond with valid keyboard shortcuts that can be executed."
         },
         {"role": "user", "content": transcription}
     ]
@@ -186,6 +195,7 @@ def command(transcription: str):
             
             if tool_call.function.name == "execute_keyboard_shortcut":
                 shortcut = KeyboardShortcut.model_validate_json(tool_call.function.arguments)
+                print(shortcut) 
                 execute_keyboard_shortcut(shortcut)
             else:
                 print(f"Unknown tool: {tool_call.function.name}")

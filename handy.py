@@ -155,14 +155,12 @@ def main():
         instruct
     )
 
-    # cmd_l + shift_l
     recorder.add_shortcut(
         "code",
-        {keyboard.Key.cmd_l, keyboard.Key.shift_l},
+        {keyboard.Key.ctrl_l, keyboard.Key.alt_l, keyboard.Key.cmd_l},
         code
     )
-
-
+    
     recorder.start_listening()
 
 if __name__ == "__main__":

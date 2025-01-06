@@ -92,10 +92,6 @@ uv run handy.py
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-[Add your license here]
-
 ## Acknowledgments
 
 - MLX Whisper for speech recognition
