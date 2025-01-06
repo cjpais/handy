@@ -55,6 +55,21 @@ Treat any context provided after the initial command/question as relevant inform
     write_to_text_field(message.content)
 
 def code(transcription: str):
+    # Save original clipboard content
+    original_clipboard = pyperclip.paste()
+    
+    # Copy any selected content from screen
+    keyboard.press(Key.cmd)
+    keyboard.press('c')
+    keyboard.release('c')
+    keyboard.release(Key.cmd)
+    
+    time.sleep(0.1)  # Wait for clipboard to update
+    selected_text = pyperclip.paste()
+    
+    # Create context including both selection and transcription
+    context = f"Selected text:\n{selected_text}\n\nRequest: {transcription}"
+    
     messages = [
         {
             "role": "system",
@@ -62,7 +77,7 @@ def code(transcription: str):
 
 If the user provides context or requirements after their initial request, use that information to generate the appropriate code. Do not include any commentary or descriptions - just the raw code implementation."""
         },
-        {"role": "user", "content": transcription}
+        {"role": "user", "content": context}
     ]
 
     response = client.chat.completions.create(
@@ -71,8 +86,10 @@ If the user provides context or requirements after their initial request, use th
     )
 
     message = response.choices[0].message
-    # keyboard.type(message.content)
     write_to_text_field(message.content)
+    
+    # Restore original clipboard
+    pyperclip.copy(original_clipboard)
 
 class ModifierKey(str, Enum):
     COMMAND = "command"
