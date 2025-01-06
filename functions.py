@@ -6,12 +6,73 @@ from pydantic import BaseModel
 from pynput.keyboard import Key, Controller
 import time
 
+import pyperclip
+
 client = openai.OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.environ.get("GROQ_API_KEY")
 )
 
+claude = openai.OpenAI(
+    base_url="https://api.anthropic.com/v1",
+    api_key=os.environ.get("ANTHROPIC_API_KEY")
+)
+
 keyboard = Controller()
+
+def write_to_text_field(text: str):
+    original_clipboard = pyperclip.paste()
+    pyperclip.copy(text)
+
+    time.sleep(0.05)
+    execute_keyboard_shortcut(KeyboardShortcut(modifiers=[ModifierKey.COMMAND], letter_key='v'))
+    time.sleep(0.05)
+
+    pyperclip.copy(original_clipboard)
+
+def instruct(transcription: str):
+    messages = [
+        {
+            "role": "system",
+            "content": """You are a helpful assistant. You will receive voice transcriptions from a user that may include both a command/question and some minimal context to help you respond appropriately.
+
+For example, the user might say:
+- A direct question with no context: "What is the capital of France?"
+- A command with context: "get commit message I fixed the bug in the login system"
+
+Treat any context provided after the initial command/question as relevant information to help formulate your response. Keep responses concise and focused on addressing the user's specific need."""
+        },
+        {"role": "user", "content": transcription}
+    ]
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+    )
+
+    message = response.choices[0].message
+    # keyboard.type(message.content)
+    write_to_text_field(message.content)
+
+def code(transcription: str):
+    messages = [
+        {
+            "role": "system",
+            "content": """You are a code-only assistant. Output ONLY the exact code requested by the user, with no markdown formatting, no explanations, and no additional text. The code should be ready to copy and paste directly into an editor. Never use backticks.
+
+If the user provides context or requirements after their initial request, use that information to generate the appropriate code. Do not include any commentary or descriptions - just the raw code implementation."""
+        },
+        {"role": "user", "content": transcription}
+    ]
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+    )
+
+    message = response.choices[0].message
+    # keyboard.type(message.content)
+    write_to_text_field(message.content)
 
 class ModifierKey(str, Enum):
     COMMAND = "command"
@@ -78,25 +139,19 @@ def execute_keyboard_shortcut(shortcut: KeyboardShortcut):
 def type_transcription(transcription: TypeTranscription):
     """Type and display the transcription text"""
     print(f"Typed transcription: {transcription.text}")
-    keyboard.type(transcription.text)
+    write_to_text_field(transcription.text)
 
 # Define the tools using Pydantic models
 tools = [
     openai.pydantic_function_tool(KeyboardShortcut, name="execute_keyboard_shortcut", description="Execute keyboard shortcuts with multiple modifier keys"),
-    openai.pydantic_function_tool(TypeTranscription, name="type_transcription", description="Type and display the transcription text")
 ]
 
-def process_transcription(transcription: str):
+def command(transcription: str):
     """Process the transcription using OpenAI's API"""
     messages = [
         {
             "role": "system",
-            "content": """You are an assistant that processes voice transcriptions for computer navigation. You are assisting a person with one hand, it is CRITICAL that you follow the instructions:
-
-1. For keyboard shortcuts (e.g., 'command P', 'ctrl shift S'): Call execute_keyboard_shortcut function with the appropriate modifier keys and letter key. Note that 'tab', 'enter', and 'backspace' are also valid modifier keys.
-2. For all other text: Clean up transcription error. Your ONLY job is to clean up clear speech-to-text errors while preserving the exact message, then call type_transcription. 
-
-Never respond directly to questions or provide explanations. Always call one of the available functions. You will be given only the transcription."""
+            "content": """You are an assistant that is given a keyboard shortcut to execute."""
         },
         {"role": "user", "content": transcription}
     ]
@@ -115,9 +170,9 @@ Never respond directly to questions or provide explanations. Always call one of 
             if tool_call.function.name == "execute_keyboard_shortcut":
                 shortcut = KeyboardShortcut.model_validate_json(tool_call.function.arguments)
                 execute_keyboard_shortcut(shortcut)
-            elif tool_call.function.name == "type_transcription":
-                transcription = TypeTranscription.model_validate_json(tool_call.function.arguments)
-                type_transcription(transcription)
+            else:
+                print(f"Unknown tool: {tool_call.function.name}")
+                print(f"response: {response}")
 
     except Exception as e:
         print(f"Error processing transcription: {e}")

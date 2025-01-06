@@ -1,0 +1,16 @@
+[project]
+name = "handy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "anthropic>=0.42.0",
+    "mlx-whisper>=0.4.1",
+    "openai>=1.59.3",
+    "pyautogui>=0.9.54",
+    "pynput>=1.7.7",
+    "pyperclip>=1.9.0",
+    "pyqt6>=6.8.0",
+    "sounddevice>=0.5.1",
+]
