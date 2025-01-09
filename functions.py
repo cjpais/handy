@@ -6,17 +6,20 @@ import openai
 from pydantic import BaseModel
 from pynput.keyboard import Key, Controller
 import time
-
+from dotenv import load_dotenv
 import pyperclip
+
+if os.path.exists('.env'):
+    load_dotenv()
 
 client = openai.OpenAI(
     base_url="https://api.groq.com/openai/v1",
-    api_key=os.environ.get("GROQ_API_KEY")
+    api_key=os.getenv("GROQ_API_KEY")
 )
 
 openrouter = openai.OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ.get("OPENROUTER_API_KEY")
+    api_key=os.getenv("OPENROUTER_API_KEY")
 )
 
 claude = anthropic.Anthropic()
@@ -54,7 +57,6 @@ Treat any context provided after the initial command/question as relevant inform
     )
 
     message = response.choices[0].message
-    # keyboard.type(message.content)
     write_to_text_field(message.content)
 
 def code(transcription: str, model="claude"):
@@ -139,20 +141,16 @@ def execute_keyboard_shortcut(shortcut: KeyboardShortcut):
     print(f"executing keyboard shortcut: {shortcut}")
     
     try:
-        # Convert modifier strings to actual keys
         modifier_keys = [key_mapping[mod] for mod in shortcut.modifiers]
         
-        # Press all modifier keys
         for mod_key in modifier_keys:
             keyboard.press(mod_key)
         
-        # Press and release the letter key
         keyboard.press(shortcut.letter_key.lower())
         time.sleep(0.1)
 
         keyboard.release(shortcut.letter_key.lower())
         
-        # Release all modifier keys in reverse order
         for mod_key in reversed(modifier_keys):
             keyboard.release(mod_key)
             
@@ -160,7 +158,6 @@ def execute_keyboard_shortcut(shortcut: KeyboardShortcut):
         
     except Exception as e:
         print(f"Error executing keyboard shortcut: {e}")
-        # Release all keys in case of error
         for mod_key in modifier_keys:
             keyboard.release(mod_key)
 
@@ -184,12 +181,11 @@ def command(transcription: str):
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # Use appropriate model
+            model="llama-3.3-70b-versatile",
             messages=messages,
             tools=tools
         )
 
-        # Handle the response
         if response.choices[0].message.tool_calls:
             tool_call = response.choices[0].message.tool_calls[0]
             
