@@ -5,17 +5,18 @@ A powerful voice-controlled productivity tool that combines speech recognition w
 ## Features
 
 - 🎙️ Local transcription using MLX Whisper
-- 🤖 AI-powered command execution and responses using Groq/Anthropic
+- 🤖 AI-powered command execution and responses using OpenRouter (Claude)
 - 💻 Code generation through voice commands
 - ⌨️ Keyboard shortcut automation
 - 📝 Direct text input from voice
+- 📋 Smart context awareness using clipboard
 
 ## Keyboard Shortcuts
 
-- CTRL + SHIFT (Left): Press and hold to execute voice commands. Release to stop recording, transcribe, and execute the command.
-- CTRL + CMD (Right): Press and hold to transcribe voice to text. Release to stop recording and display the transcription.
-- SHIFT + ALT (Left): Press and hold to get AI assistance. Release to stop recording, transcribe, and provide AI-generated responses.
-- CMD + SHIFT (Left): Press and hold to generate code from voice input. Release to stop recording, transcribe, and generate code based on the voice input.
+- CTRL + SHIFT (Left): Execute voice commands for keyboard shortcuts
+- CTRL + CMD (Right): Transcribe voice to text
+- SHIFT + ALT (Left): Get AI assistance with context awareness
+- CTRL + ALT + CMD (Left): Generate code from voice input with context support
 
 ## Requirements
 
@@ -27,6 +28,7 @@ mlx_whisper
 pydantic
 pyperclip
 numpy
+python-dotenv
 ```
 
 ## Environment Variables
@@ -34,8 +36,7 @@ numpy
 The following environment variables need to be set:
 
 ```bash
-GROQ_API_KEY=your_groq_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
 ## Installation
@@ -67,12 +68,13 @@ uv run handy.py
 ## Examples
 
 1. **Code Generation**:
-   - Hold `CMD + SHIFT` (Left)
+   - Hold `CTRL + ALT + CMD` (Left)
    - Say "create a Python function to sort a list"
    - Release keys to get the generated code
 
 2. **AI Assistance**:
    - Hold `SHIFT + ALT` (Left)
+   - Select text for context (optional)
    - Ask your question
    - Release to get AI response
 
@@ -81,11 +83,17 @@ uv run handy.py
    - Speak your text
    - Release to transcribe
 
+4. **Keyboard Commands**:
+   - Hold `CTRL + SHIFT` (Left)
+   - Say "copy" or "paste" or other keyboard shortcuts
+   - Release to execute the command
+
 ## Architecture
 
 - `AudioRecorder`: Handles real-time audio recording and processing
 - `KeyboardShortcut`: Manages keyboard combinations and actions
-- AI Integration: Uses Groq and Anthropic for different types of responses
+- `ContextManager`: Handles clipboard-based context awareness
+- AI Integration: Uses OpenRouter with Claude for intelligent responses
 - MLX Whisper: Provides fast and accurate speech-to-text conversion
 
 ## Contributing
@@ -95,5 +103,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Acknowledgments
 
 - MLX Whisper for speech recognition
-- Groq and Anthropic for AI capabilities
+- OpenRouter and Claude for AI capabilities
 - The open-source community for various dependencies
