@@ -1,7 +1,6 @@
 from enum import Enum
 import os
 from typing import List
-import anthropic
 import openai
 from pydantic import BaseModel
 from pynput.keyboard import Key, Controller
@@ -12,17 +11,10 @@ import pyperclip
 if os.path.exists('.env'):
     load_dotenv()
 
-client = openai.OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=os.getenv("GROQ_API_KEY")
-)
-
 openrouter = openai.OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY")
 )
-
-claude = anthropic.Anthropic()
 
 keyboard = Controller()
 
@@ -51,8 +43,8 @@ Treat any context provided after the initial command/question as relevant inform
         {"role": "user", "content": transcription}
     ]
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+    response = openrouter.chat.completions.create(
+        model="anthropic/claude-3.5-sonnet:beta",
         messages=messages,
     )
 
@@ -81,25 +73,17 @@ def code(transcription: str, model="claude"):
     - Terminal command syntax when a command is requested
     - No markdown, no backticks, no explanations
     - No additional text or descriptions"""
-    
-    messages = [{"role": "user", "content": context}]
 
-    if model == "claude":
-        response = claude.messages.create(
-            model="claude-3-5-sonnet-latest",
-            messages=messages,
-            max_tokens=2048,
-            system=sys_prompt
-        )
-        message = response.content[0].text
-    elif model == "llama":
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages
-        )
-        message = response.choices[0].message.content
-    else:
-        raise ValueError("Invalid model specified. Use 'claude' or 'llama'")
+    messages = [
+        {"role": "system", "content": sys_prompt},
+        {"role": "user", "content": context}
+    ]
+
+    response = openrouter.chat.completions.create(
+        model="anthropic/claude-3.5-sonnet:beta",
+        messages=messages
+    )
+    message = response.choices[0].message.content
 
     write_to_text_field(message)
     pyperclip.copy(original_clipboard)
@@ -180,8 +164,8 @@ def command(transcription: str):
     ]
 
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = openrouter.chat.completions.create(
+            model="anthropic/claude-3.5-sonnet:beta",
             messages=messages,
             tools=tools
         )
