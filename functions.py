@@ -28,7 +28,52 @@ def write_to_text_field(text: str):
 
     pyperclip.copy(original_clipboard)
 
+class ContextManager:
+    def __init__(self):
+        self.context_items = []
+        
+    def get_cursor_context(self):
+        original_clipboard = pyperclip.paste()
+        
+        keyboard.press(Key.cmd)
+        keyboard.press('c')
+        keyboard.release('c')
+        keyboard.release(Key.cmd)
+        
+        time.sleep(0.1)
+        selected_text = pyperclip.paste()
+        pyperclip.copy(original_clipboard)
+        
+        return selected_text if selected_text != original_clipboard else ""
+    
+    def add_context(self, content, description=None):
+        self.context_items.append({
+            'content': content,
+            'description': description
+        })
+        
+    def format_context(self):
+        formatted = []
+        for item in self.context_items:
+            if item['description']:
+                formatted.append(f"{item['description']}:\n{item['content']}")
+            else:
+                formatted.append(f"Context:\n{item['content']}")
+        return "\n\n".join(formatted)
+    
+    def clear(self):
+        self.context_items = []
+
+def get_cursor_selection():
+    context_manager = ContextManager()
+    selected_text = context_manager.get_cursor_context()
+    if selected_text:
+        context_manager.add_context(selected_text, "Selected text")
+    return context_manager
+
 def instruct(transcription: str):
+    context_manager = get_cursor_selection()
+    
     messages = [
         {
             "role": "system",
@@ -39,9 +84,14 @@ For example, the user might say:
 - A command with context: "get commit message I fixed the bug in the login system"
 
 Treat any context provided after the initial command/question as relevant information to help formulate your response. Keep responses concise and focused on addressing the user's specific need."""
-        },
-        {"role": "user", "content": transcription}
+        }
     ]
+    
+    if context_manager.context_items:
+        context = context_manager.format_context()
+        messages.append({"role": "user", "content": f"{transcription}\n\n{context}"})
+    else:
+        messages.append({"role": "user", "content": transcription})
 
     response = openrouter.chat.completions.create(
         model="anthropic/claude-3.5-sonnet:beta",
@@ -52,18 +102,8 @@ Treat any context provided after the initial command/question as relevant inform
     write_to_text_field(message.content)
 
 def code(transcription: str, model="claude"):
-    original_clipboard = pyperclip.paste()
+    context_manager = get_cursor_selection()
     
-    keyboard.press(Key.cmd)
-    keyboard.press('c')
-    keyboard.release('c')
-    keyboard.release(Key.cmd)
-    
-    time.sleep(0.1)
-    selected_text = pyperclip.paste()
-    
-    context = f"Selected text:\n{selected_text}\n\nRequest: {transcription}"
-
     sys_prompt = """You are a code-only assistant. I will provide you with selected text or clipboard content along with instructions. If I request code, output only the exact code implementation. If I request a terminal command, provide only the valid command syntax. Never use markdown, explanations, or additional text.
 
     When I share selected text or clipboard content, use that as context for generating your response. The output should be ready to copy and paste directly, with no formatting or commentary. For terminal commands, ensure they are valid for the specified environment. Note for terminal commands, I typically use lowercase instead of uppercase. You may also be given them directly, but need to translate them into a way that can actually be executed in the terminal because the transcription you are given might be poor.
@@ -75,9 +115,14 @@ def code(transcription: str, model="claude"):
     - No additional text or descriptions"""
 
     messages = [
-        {"role": "system", "content": sys_prompt},
-        {"role": "user", "content": context}
+        {"role": "system", "content": sys_prompt}
     ]
+    
+    if context_manager.context_items:
+        context = context_manager.format_context()
+        messages.append({"role": "user", "content": f"{transcription}\n\n{context}"})
+    else:
+        messages.append({"role": "user", "content": transcription})
 
     response = openrouter.chat.completions.create(
         model="anthropic/claude-3.5-sonnet:beta",
@@ -86,7 +131,6 @@ def code(transcription: str, model="claude"):
     message = response.choices[0].message.content
 
     write_to_text_field(message)
-    pyperclip.copy(original_clipboard)
 
 class ModifierKey(str, Enum):
     COMMAND = "command"
